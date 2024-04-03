@@ -1,0 +1,98 @@
+﻿<!-- EditRecords.razor -->
+@page "/edit-records/{userId}"
+@using BlueStone_Admin.Components.Account
+@using BlueStone_Admin.Data
+@inject HomeService recordsService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Edit Records</h3>
+
+<div>
+    <label>Select Month:</label>
+    <select @bind="selectedMonth" @oninput="HandleMonthSelectionChange">
+        <option value="">-- Select Month --</option>
+        @foreach (var month in months)
+        {
+            <option value="@month">@month</option>
+        }
+    </select>
+</div>
+
+@if (records != null && records.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Time In</th>
+                <th>Time Out</th>
+                <th>Daily Report</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var record in records)
+            {
+                <tr>
+                    <td><input type="date" @bind="@record.Date" /></td>
+                    <td>@record.LoginTime</td>
+                    <td><input type="time" @bind="@record.LogoutTime" /></td>
+                    <td><textarea @bind="@record.Text"></textarea></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No records found for this user.</p>
+}
+
+<button @onclick="SaveRecords">Save Records</button>
+
+@code {
+    [Parameter]
+    public string UserId { get; set; }
+
+    private List<UserReport> records;
+    private string selectedMonth;
+    private string emailId;
+
+    private readonly List<string> months = new List<string>
+    {
+        "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        emailId = authState.User.Identity?.Name;
+        await LoadRecords();
+    }
+
+    private async Task LoadRecords()
+    {
+        if (!string.IsNullOrEmpty(selectedMonth) && !string.IsNullOrEmpty(emailId))
+        {
+            records = await recordsService.GetUserReportsForMonth(selectedMonth, emailId);
+        }
+        else
+        {
+            records = null;
+        }
+    }
+
+    private async Task SaveRecords()
+    {
+        if (records != null)
+        {
+            await recordsService.SaveRecords(records);
+        }
+        NavigationManager.NavigateTo("/manage-employees");
+    }
+
+    private async Task HandleMonthSelectionChange(ChangeEventArgs e)
+    {
+        await LoadRecords();
+    }
+}

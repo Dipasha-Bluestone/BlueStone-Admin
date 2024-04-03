@@ -1,0 +1,50 @@
+﻿@using BlueStone_Admin.Data
+@using BlueStone_Admin.Components.Account
+@inject ToDoCardService todoService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+<style>
+    .landscape-card2 {
+        width: 290%;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }</style>
+<div class="card landscape-card2">
+    <div class="card-header">
+        <h5 class="card-title">To-Do Items</h5>
+    </div>
+    <div class="card-body">
+        @if (todoItems != null && todoItems.Any())
+        {
+            <ul class="list-group">
+                @foreach (var item in todoItems)
+                {
+                    <li class="list-group-item">@item.Description</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No to-do items found.</p>
+        }
+    </div>
+</div>
+
+@code {
+    private List<ToDoContext> todoItems;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTodoItems();
+    }
+
+    private async Task LoadTodoItems()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userEmail = authState.User.Identity?.Name;
+
+        if (!string.IsNullOrEmpty(userEmail))
+        {
+            todoItems = todoService.GetToDoItemsForUserSync(userEmail);
+        }
+    }
+}

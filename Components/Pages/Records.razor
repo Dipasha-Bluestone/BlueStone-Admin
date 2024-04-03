@@ -1,0 +1,81 @@
+﻿@page "/records"
+@using BlueStone_Admin.Data
+@using BlueStone_Admin.Components.Account
+@using System.Globalization
+@using BlueStone_Admin.Components.Pages
+@using DinkToPdf
+@inject PdfService PdfService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HomeService homeService
+@inject IJSRuntime JSRuntime
+
+<h3>Month-wise Records</h3>
+
+<div class="month-selector">
+    <select @bind="selectedMonth" @oninput="LoadUserReports">
+        <option value="0">Select Month</option>
+        @foreach (var month in CultureInfo.CurrentCulture.DateTimeFormat.MonthNames.Where(m => !string.IsNullOrEmpty(m)))
+        {
+            <option value="@month">@month</option>
+        }
+    </select>
+</div>
+
+@if (userReports != null && userReports.Any())
+{
+    <div class="table-container">
+        <table class="table" id="reportTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Login Time</th>
+                    <th>Logout Time</th>
+                    <th>Report</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var report in userReports)
+                {
+                    <tr>
+                        <td>@report.Date.ToString("dd MMMM yyyy")</td>
+                        <td>@report.LoginTime</td>
+                        <td>@report.LogoutTime</td>
+                        <td>@report.Text</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <p>No reports available for selected month.</p>
+}
+
+<button @onclick="()=>DownloadPDF(selectedMonth)">Download as PDF</button>
+
+@code {
+    private List<UserReport> userReports;
+    private string selectedMonth = DateTime.MinValue.ToString("MMMM", CultureInfo.InvariantCulture);
+
+    private async Task LoadUserReports(ChangeEventArgs e)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var emailId = user.Identity?.Name;
+            selectedMonth = e.Value.ToString();
+            userReports = await homeService.GetUserReportsForMonth(selectedMonth, emailId);
+        }
+    }
+
+    private async Task DownloadPDF(string selectedMonth)
+    {
+      var htmlContent = "<p>Pdf will be downloaded.</p>";
+    var fileName = $"{selectedMonth}Report.pdf";
+
+    await JSRuntime.InvokeVoidAsync("downloadPdf", htmlContent, fileName);
+    }
+}

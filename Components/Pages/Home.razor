@@ -1,0 +1,278 @@
+﻿@page "/"
+@using BlueStone_Admin.Data
+@using BlueStone_Admin.Components.Account
+@using System.IO
+@using BlazorInputFile
+@using global::Data
+@inject NavigationManager navigationManager
+@inject HomeService homeService
+@inject ProfileService profileService
+@inject ToDoService todoService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Home</PageTitle>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        #logo {
+            max-width: 500px;
+            margin: 40px auto;
+        }
+
+        #logo2 {
+            max-width: 150px;
+            margin: 50px auto;
+        }
+
+        #welcome-message {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .buttons-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 20px;
+        }
+
+        .time-button {
+            background-color: green;
+            color: white;
+            align-content:center;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .time-button2 {
+            background-color: red;
+            color: white;
+            align-content: baseline;
+            margin-top: 450px;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+            .time-button:hover {
+                background-color: darkgreen;
+            }
+
+            .time-button:disabled,
+        .time-button2:disabled {
+            background-color: lightgray;
+            cursor: not-allowed;
+        }
+
+        .time-button2:hover {
+            background-color: darkred;
+        }
+
+        .line-in-middle {
+            width: 400px;
+            height: 450px;
+            background: linear-gradient(to right, transparent 0%, transparent calc(50% - 0.81px), grey calc(50% - 0.8px), grey calc(50% + 0.8px), transparent calc(50% + 0.81px), transparent 100%);
+        }
+
+        div[data-item-name="Photo"] + .xaf-validation-message-container img {
+            border-radius: 50%;
+            
+        }
+
+        .report-textbox {
+            width: 650px;
+            height: 100px;
+            margin-left: -120px; /* Center the text box horizontally */
+            display: block;
+            margin-top: -150px;
+            resize: none; 
+        }
+
+        .report-button {
+            margin-top: 10px;
+            margin-right: 950px;
+            margin-left: 160px;
+            padding: 10px 20px;
+            background-color: midnightblue;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+                    }
+
+        .right-section {
+            
+            margin-left: 500px; 
+            display: block;
+            margin-top: -550px;
+            resize: none;
+        }
+
+        .left-section {
+            margin-right: 1200px; 
+            display: block;
+            margin-top: -530px;
+            margin-bottom: -200px;
+            resize: none;
+        }
+
+        .file-drop-zone {
+            display: flex;
+            width: 10%;
+            border: 3px dotted #fb275d;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
+        .hover {
+            border-style: solid;
+            background-color: #00ca71;
+        }
+
+        .image-container img {
+            width: 5%;
+            margin: 1rem;
+        }
+
+        .deep input[type=file) {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img id="logo" src="company_logo.png" alt="Company Logo">
+    </header>
+    <AuthorizeView>
+        <NotAuthorized>
+            <div>
+                <img id="logo" src="BTL.jpg" alt="Array">
+            </div>
+        </NotAuthorized>
+        <Authorized>
+    <main>
+                    <div id="welcome-message">
+                        Welcome, @context.User.Identity?.Name!
+                    </div>
+                
+                   <div class="buttons-container">
+                        <div class="button-wrapper">
+                        <button class="time-button" @onclick="SetTimeIn" disabled="@timeInButtonClicked">Time In</button>
+                    </div><br>
+                    <div class="line-in-middle"><br>
+                        <button class="time-button2" @onclick="SetTimeOut" disabled="@timeOutButtonClicked">Time Out</button>
+                    </div> 
+                    <div class="report-container">
+                        <label></label>
+                        <textarea class="report-textbox" @bind="@dailyReport">Write Your Daily Report </textarea>
+                        <button class="report-button" @onclick="SubmitReport">Submit Report</button>
+                    </div>
+                    <div class="right-section">
+                        <div class="todo-container">
+                            <h2>User Profile</h2> 
+                    </div>
+                    </div> <ProfileDetails />
+                    <div class="left-section">
+                        <div class="todo-container">
+                            <h2>To-Do Items</h2> <br />
+                            <ToDoCard />
+                    </div>
+                    </div>
+                    </div>
+    </main></Authorized>
+    </AuthorizeView>
+</body>
+</html>
+@code{
+    private HomeContext homeModel = new HomeContext();
+    private string dailyReport;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var email = user.Identity?.Name;
+            dailyReport = await homeService.GetDailyReport(email);
+        }
+
+    }
+
+    private async Task SubmitReport()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var email = user.Identity?.Name;
+            await homeService.SaveDailyReport(email, dailyReport);
+        }
+    }
+
+
+    private bool timeInButtonClicked = false;
+    private bool timeOutButtonClicked = false;
+    private async Task SetTimeIn()
+    {
+        var editContext = new EditContext(homeModel);
+        if (!editContext.Validate())
+        {
+            return;
+        }
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var email = user.Identity?.Name;
+            await homeService.SetTimeIn(email);
+            if (!string.IsNullOrEmpty(email))
+            {
+                homeModel.EmailId = email;
+                homeModel = new HomeContext();
+            }
+        }
+        timeInButtonClicked = true;
+    }
+    private async Task SetTimeOut()
+    {
+        var editContext = new EditContext(homeModel);
+        if (!editContext.Validate())
+        {
+            return;
+        }
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var email = user.Identity?.Name;
+            await homeService.SetTimeOut(email);
+            if (!string.IsNullOrEmpty(email))
+            {
+                homeModel.EmailId = email;
+                homeModel = new HomeContext();
+            }
+        }
+
+        timeOutButtonClicked = true;
+
+    }
+   
+
+   
+}

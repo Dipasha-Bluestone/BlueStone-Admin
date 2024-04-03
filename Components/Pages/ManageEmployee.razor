@@ -1,0 +1,60 @@
+﻿@page "/manage-employees"
+@using BlueStone_Admin.Components.Account
+@using BlueStone_Admin.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ManageEmployeeContext manageEmployeeContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<h3>Manage Employees</h3>
+
+@if (userProfiles != null && userProfiles.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th></th> <!-- Empty column for the Edit Records button -->
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var userProfile in userProfiles)
+            {
+                <tr>
+                    <td>@userProfile.Name</td>
+                    <td>@userProfile.EmailId</td>
+                    <td>@userProfile.Role</td>
+                    <td>
+                        <button @onclick="() => EditRecords(userProfile.EmailId)">
+                            Edit Records
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No employees found.</p>
+}
+
+@code {
+    private List<Profile> userProfiles;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userEmail = authState.User.Identity?.Name;
+        userProfiles = await manageEmployeeContext.GetAllUserProfilesAsync();
+    }
+
+    private void EditRecords(string userId) => NavigationManager.NavigateTo($"/edit-records/{userId}");
+}

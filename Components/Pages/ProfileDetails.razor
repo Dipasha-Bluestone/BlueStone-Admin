@@ -1,0 +1,236 @@
+﻿@using BlueStone_Admin.Components.Account
+@using BlueStone_Admin.Data
+@using Microsoft.EntityFrameworkCore
+@inject ProfileService profileService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<style>
+    .landscape-card {
+        width: 100%;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .profile-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .profile-image-wrapper {
+        margin-right: 10px;
+    }
+
+    .profile-details {
+        flex-grow: 1;
+    }
+
+    .profile-image {
+        width: 100px;
+        height: auto;
+        border-radius: 50%;
+    }
+
+    .placeholder-image {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background-color: #ccc;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .edit-button {
+        padding: 10px 20px;
+        background-color: midnightblue;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+</style>
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Other content of the page -->
+        </div>
+        <div class="col-md-4">
+            <div class="card landscape-card">
+                <div class="card-body">
+                    <div class="profile-header">
+                        <div class="profile-image-wrapper">
+                            @if (profile != null)
+                            {
+                                <img class="profile-image" src="@profile.ImageUrl" alt="Profile Image" />
+                            }
+                            else
+                            {
+                                <div class="placeholder-image">No Image</div>
+                            }
+                        </div>
+                        <div class="profile-details">
+                            <dl>
+                                <dt>Name:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.Name
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.Name" />
+                                    }
+                                </dd>
+                                <dt>Designation:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.Designation
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.Designation" />
+                                    }
+                                </dd>
+
+                                <dt>Role:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.Role
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.Role" />
+                                    }
+                                </dd>
+
+                                <dt>Gender:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.Gender
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.Gender" />
+                                    }
+                                </dd>
+
+                                <dt>Birthday:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @(profile?.Birthday.ToShortDateString())
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.Birthday " />
+                                    }
+                                </dd>
+
+                                <dt>Contact Number:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.ContactNumber
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.ContactNumber" />
+                                    }
+                                </dd>
+
+                                <dt>Emergency Contact Number:</dt>
+                                <dd>
+                                    @if (!editMode)
+                                    {
+                                        @profile?.EmergencyContactNumber
+                                    }
+                                    else
+                                    {
+                                        <input type="text" @bind="profile.EmergencyContactNumber" />
+                                    }
+                                </dd>
+
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    @if (!editMode)
+                    {
+                        <button class="edit-button" @onclick="ToggleEditMode">Edit</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success" @onclick="SaveProfile">Save</button>
+                        <button class="btn btn-secondary" @onclick="ToggleEditMode">Cancel</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Profile? profile;
+    private bool editMode = false;
+
+    private async Task SaveProfile()
+    {
+        if (profile != null)
+        {
+            try
+            {
+                var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                var userEmail = authState.User.Identity?.Name;
+                profile.EmailId = userEmail;
+
+                await profileService.UpdateUserProfile(profile);
+
+                editMode = false;
+
+                Console.WriteLine("Profile saved successfully.");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                Console.WriteLine("Concurrency violation detected. Retrying the update.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving profile: {ex.Message}");
+            }
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var emailId = user.Identity?.Name;
+            profile = await profileService.GetUserProfile(emailId);
+
+            // Log profile data for debugging
+            Console.WriteLine("Profile loaded:");
+            if (profile != null)
+            {
+                Console.WriteLine($"Name: {profile.Name}, Email: {profile.EmailId}");
+            }
+            else
+            {
+                Console.WriteLine("No profile found.");
+            }
+        }
+    }
+
+    private void ToggleEditMode()
+    {
+        editMode = !editMode;
+    }
+}

@@ -1,0 +1,147 @@
+﻿@page "/ToDo"
+@using BlueStone_Admin.Components.Account
+@using BlueStone_Admin.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ToDoService toDoService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>To-Do List</h3>
+
+<EditForm Model="@todoItem" OnValidSubmit="SaveToDoItem">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="description">Description:</label>
+        <InputText id="description" class="form-control" @bind-Value="todoItem.Description" />
+    </div>
+    <div class="form-group">
+        <label for="deadline">Deadline:</label>
+        <InputDate id="deadline" class="form-control" @bind-Value="todoItem.Deadline" />
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</EditForm>
+
+<h3>My To-Do Items</h3>
+
+<div>
+    <button class="btn btn-primary" @onclick="()=>SetShowCompleted(true)">Show Completed</button>
+    <button class="btn btn-primary" @onclick="()=>SetShowCompleted(false)">Show Uncompleted</button>
+</div>
+
+@if (todoItems != null && todoItems.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Deadline</th>
+                <th>Completed</th>
+                <th></th> <!-- Edit button column -->
+                <th></th> <!-- Delete button column -->
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in todoItems)
+            {
+                <tr>
+                    <td>@item.Description</td>
+                    <td>@item.Deadline.ToShortDateString()</td>
+                    <td>
+                        <input type="checkbox" @bind="@item.IsCompleted" />
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="()=>EditToDoItem(item)">Edit</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" @onclick="()=>DeleteToDoItem(item)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No to-do items found.</p>
+}
+
+@code {
+    private ToDoContext todoItem = new ToDoContext();
+    private List<ToDoContext> todoItems = new List<ToDoContext>();
+    private bool showCompleted = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadToDoItems();
+    }
+
+    private async Task LoadToDoItems()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            var userEmail = user.Identity?.Name;
+            if (!string.IsNullOrEmpty(userEmail))
+            {
+                if (showCompleted)
+                {
+                    todoItems = await toDoService.GetCompletedToDoItemsForUser(userEmail);
+                }
+                else
+                {
+                    todoItems = await toDoService.GetUncompletedToDoItemsForUser(userEmail);
+                }
+            }
+        }
+    }
+
+    private async Task SaveToDoItem()
+    {
+        try
+        {
+            var editContext = new EditContext(todoItem);
+            if (!editContext.Validate())
+            {
+                return;
+            }
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated ?? false)
+            {
+                var userEmail = user.Identity?.Name;
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    todoItem.EmailId = userEmail;
+                    await toDoService.SaveToDoItem(todoItem);
+                    await LoadToDoItems();
+                    todoItem = new ToDoContext();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving to-do item: {ex.Message}");
+        }
+    }
+
+    private async Task EditToDoItem(ToDoContext item)
+    {
+        todoItem = item;
+    }
+
+    private async Task DeleteToDoItem(ToDoContext item)
+    {
+        await toDoService.DeleteToDoItem(item.EmailId); 
+        await LoadToDoItems();
+    }
+
+    private void SetShowCompleted(bool value)
+    {
+        showCompleted = value;
+        _ = LoadToDoItems();
+    }
+}
